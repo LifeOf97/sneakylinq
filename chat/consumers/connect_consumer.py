@@ -6,20 +6,20 @@ import uuid
 from json.decoder import JSONDecodeError
 
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
-from channels.layers import get_channel_layer
 from django.utils import timezone
 
 from chat.events import CONNECT_EVENT_TYPES, SCAN_EVENT_TYPES
 from src.helpers import format_alias, is_valid_alias
 from src.utils import is_valid_uuid, redis_client
 
-CHANNEL_LAYER = get_channel_layer()
-
 
 class ConnectConsumer(AsyncJsonWebsocketConsumer):
     groups = ["broadcast"]
-    _user: str | None = None
-    _user_groups: str | None = None
+
+    _pid: uuid.UUID | None = None
+    _device: str | None = None
+    _device_groups: str | None = None
+    _device_aliases: str = "device:aliases"
 
     async def connect(self):
         headers: dict = dict(self.scope["headers"])
@@ -33,24 +33,25 @@ class ConnectConsumer(AsyncJsonWebsocketConsumer):
             if is_valid_uuid(pid):
                 await self.channel_layer.group_add("broadcast", self.channel_name)
 
-                # update  _user & _user_groups values
-                self._user = f"user:{pid}"
-                self._user_groups = f"{self._user}:groups"
+                # set _pid,  _device & _device_groups values
+                self._pid = pid
+                self._device = f"device:{self._pid}"
+                self._device_groups = f"{self._device}:groups"
 
                 # store data in redis
                 redis_client.hset(
-                    name=self._user,
+                    name=self._device,
                     mapping={
-                        "pid": f"{pid}",
+                        "pid": f"{self._pid}",
                         "channel": f"{self.channel_name}",
                         "last_seen": f"{timezone.now()}",
                     },
                 )
 
                 # store users groups in redis also
-                redis_client.sadd(self._user_groups, *self.groups)
+                redis_client.sadd(self._device_groups, *self.groups)
 
-                # accept connection and send device data if any, back to client
+                # accept connection and send device data back to client
                 await self.accept()
                 await self.send_json(
                     {
@@ -58,9 +59,11 @@ class ConnectConsumer(AsyncJsonWebsocketConsumer):
                         "status": True,
                         "message": "Current device data",
                         "data": {
-                            **redis_client.hgetall(self._user),
+                            **redis_client.hgetall(self._device),
                             **{
-                                "groups": list(redis_client.smembers(self._user_groups))
+                                "groups": list(
+                                    redis_client.smembers(self._device_groups)
+                                )
                             },
                         },
                     }
@@ -71,9 +74,11 @@ class ConnectConsumer(AsyncJsonWebsocketConsumer):
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard("group", self.channel_name)
-        redis_client.hdel(self._user, "channel")
+        redis_client.hdel(self._device, "channel")
 
     async def receive(self, text_data=None, bytes_data=None):
+        """Receive device alias and store in redis"""
+
         try:
             alias: str = json.loads(text_data)["alias"]
         except (TypeError, JSONDecodeError):
@@ -93,19 +98,28 @@ class ConnectConsumer(AsyncJsonWebsocketConsumer):
                 }
             )
         else:
-            alias_msg, alias_status = is_valid_alias(alias)
+            alias_msg, alias_name, alias_status = is_valid_alias(alias=alias)
+
+            if alias_status:
+                alias_msg, alias_name, alias_status = format_alias(
+                    pid=self._pid, alias=alias_name
+                )
+
+                if alias_status:
+                    # add the device alias to device data and device aliases in redis store
+                    redis_client.hset(self._device, key="alias", value=alias_name)
+                    redis_client.hset(
+                        self._device_aliases, key=self._pid, value=alias_name
+                    )
 
             await self.send_json(
                 {
                     "event": CONNECT_EVENT_TYPES.CONNECT_SETUP.value,
                     "status": alias_status,
                     "message": alias_msg,
+                    "data": {"alias": alias_name if alias_status else None},
                 }
             )
-
-            if alias_status:
-                # update _users data, to add the users/device alias
-                redis_client.hset(self._user, key="alias", value=format_alias(alias))
 
     async def chat_message(self, event):
         await self.send_json(event["data"])
