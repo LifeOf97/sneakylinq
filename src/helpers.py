@@ -25,14 +25,14 @@ def is_valid_alias(alias: str) -> tuple[str, str, bool]:
         status = False
         message = "Alias must be between 4 to 15 characters long"
 
-    elif alias in ["sneaky", "linq", "sneakylinq", "sneaky_linq"]:
+    elif alias in ["none", "sneaky", "linq", "sneakylinq", "sneaky_linq"]:
         status = False
         message = f"{alias} is not allowed"
 
     return (message, alias, status)
 
 
-def format_alias(pid: str, alias: str) -> tuple[str, str, bool]:
+def format_alias(did: str, alias: str) -> tuple[str, str, bool]:
     """
     Append the word (.linq) to alias, check if the alias already belongs
     to another device or is already the alias of the device trying to set their
@@ -40,7 +40,7 @@ def format_alias(pid: str, alias: str) -> tuple[str, str, bool]:
 
     User's alias are stored in redis as hash, with key "device:aliases"
 
-    pid: user's pid as key
+    did: user's pid as key
     alias: the new alias to set
     """
     _device_aliases: str = "device:aliases"
@@ -49,7 +49,7 @@ def format_alias(pid: str, alias: str) -> tuple[str, str, bool]:
     message: str = "Alias accepted"
     status: bool = True
 
-    if alias == redis_client.hget(_device_aliases, key=pid):
+    if alias == redis_client.hget(_device_aliases, key=str(did)):
         status = False
         message = f"{alias} is already your device alias"
 

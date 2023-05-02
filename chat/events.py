@@ -8,3 +8,4 @@ class CONNECT_EVENT_TYPES(Enum):
 
 class SCAN_EVENT_TYPES(Enum):
     SCAN_NOTIFY = "scan.notify"
+    SCAN_SETUP = "scan.setup"
