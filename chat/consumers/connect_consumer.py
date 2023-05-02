@@ -47,7 +47,7 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 await self.accept()
                 await self.send_json(
                     {
-                        "event": CONNECT_EVENT_TYPES.CONNECT_USER.value,
+                        "event": CONNECT_EVENT_TYPES.CONNECT_DEVICE.value,
                         "status": True,
                         "message": "Current device data",
                         "data": {
