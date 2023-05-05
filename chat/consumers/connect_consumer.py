@@ -141,7 +141,7 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
 class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
     """
     Implements a scan to connect feature via QR Code scanning
-    and carry out setup
+    and carries out device setup.
     """
 
     async def connect(self):
