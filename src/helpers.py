@@ -4,7 +4,11 @@ from src.utils import redis_client
 
 
 def is_valid_alias(alias: str) -> tuple[str, str, bool]:
-    """Check the validity of an alias"""
+    """
+    Checks the validity of an alias.
+    
+    converts spaces and hyphens to underscores before checks.
+    """
 
     alias: str = slugify(str(alias).lower()).replace("-", "_")
 
@@ -29,10 +33,10 @@ def is_valid_alias(alias: str) -> tuple[str, str, bool]:
         status = False
         message = f"{alias} is not allowed"
 
-    return (message, alias, status)
+    return message, alias, status
 
 
-def format_alias(did: str, alias: str) -> tuple[str, str, bool]:
+def format_alias(device: str, alias: str) -> tuple[str, str, bool]:
     """
     Append the word (.linq) to alias, check if the alias already belongs
     to another device or is already the alias of the device trying to set their
@@ -49,7 +53,7 @@ def format_alias(did: str, alias: str) -> tuple[str, str, bool]:
     message: str = "Alias accepted"
     status: bool = True
 
-    if alias == redis_client.hget(_device_aliases, key=str(did)):
+    if alias == redis_client.hget(_device_aliases, key=device):
         status = False
         message = f"{alias} is already your device alias"
 

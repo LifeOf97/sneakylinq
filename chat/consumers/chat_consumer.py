@@ -9,7 +9,6 @@ from src.utils import redis_client
 
 
 class ChatOneToOneConsumer(AsyncJsonWebsocketConsumer):
-
     async def connect(self):
         headers: dict = dict(self.scope["headers"])
 
