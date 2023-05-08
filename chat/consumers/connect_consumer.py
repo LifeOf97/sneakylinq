@@ -4,7 +4,7 @@ from json.decoder import JSONDecodeError
 
 from django.utils import timezone
 
-from chat.events import CONNECT_EVENT_TYPES, SCAN_EVENT_TYPES
+from chat.events import DEVICE_EVENT_TYPES, SCAN_EVENT_TYPES
 from chat.lua_scripts import LuaScripts
 from src.helpers import format_alias, is_valid_alias
 from src.utils import (
@@ -52,7 +52,7 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 await self.accept()
                 await self.send_json(
                     {
-                        "event": CONNECT_EVENT_TYPES.CONNECT_DEVICE.value,
+                        "event": DEVICE_EVENT_TYPES.DEVICE_CONNECT.value,
                         "status": True,
                         "message": "Current device data",
                         "data": convert_array_to_dict(
@@ -76,7 +76,7 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
         except (TypeError, JSONDecodeError):
             await self.send_json(
                 {
-                    "event": CONNECT_EVENT_TYPES.CONNECT_SETUP.value,
+                    "event": DEVICE_EVENT_TYPES.DEVICE_SETUP.value,
                     "status": False,
                     "message": "Message(s) must be in json format",
                 }
@@ -84,7 +84,7 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
         except KeyError:
             await self.send_json(
                 {
-                    "event": CONNECT_EVENT_TYPES.CONNECT_SETUP.value,
+                    "event": DEVICE_EVENT_TYPES.DEVICE_SETUP.value,
                     "status": False,
                     "message": "Please provide your alias",
                 }
@@ -109,7 +109,7 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                         {
                             "type": "chat.message",
                             "data": {
-                                "event": CONNECT_EVENT_TYPES.CONNECT_SETUP.value,
+                                "event": DEVICE_EVENT_TYPES.DEVICE_SETUP.value,
                                 "status": True,
                                 "message": alias_msg,
                                 "data": convert_array_to_dict(
@@ -124,10 +124,10 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
             # notify client for errors
             await self.send_json(
                 {
-                    "event": CONNECT_EVENT_TYPES.CONNECT_SETUP.value,
+                    "event": DEVICE_EVENT_TYPES.DEVICE_SETUP.value,
                     "status": alias_status,
                     "message": alias_msg,
-                    "data": {"alias": alias_name if alias_status else None},
+                    "data": {"alias": alias_name},
                 }
             )
 

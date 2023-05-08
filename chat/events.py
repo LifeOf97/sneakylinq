@@ -1,9 +1,9 @@
 from enum import Enum
 
 
-class CONNECT_EVENT_TYPES(Enum):
-    CONNECT_DEVICE = "connect.device"
-    CONNECT_SETUP = "connect.setup"
+class DEVICE_EVENT_TYPES(Enum):
+    DEVICE_CONNECT = "device.connect"
+    DEVICE_SETUP = "device.setup"
 
 
 class SCAN_EVENT_TYPES(Enum):
