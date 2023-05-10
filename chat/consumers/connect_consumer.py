@@ -35,28 +35,33 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 self._device = f"device:{self._did}"
                 self._device_groups = f"{self._device}:groups"
 
+                # accept connection
+                await self.accept()
+
                 # store data in redis
                 redis_client.hset(
                     name=self._device,
                     mapping={
                         "did": f"{self._did}",
                         "channel": f"{self.channel_name}",
-                        "last_seen": f"{timezone.now()}",
+                        "ttl": f"{(timezone.now() + timezone.timedelta(hours=2)).timestamp()}",
                     },
                 )
 
                 # store users groups in redis also
                 redis_client.sadd(self._device_groups, *self.groups)
 
-                # accept connection and send device data back to client
-                await self.accept()
+                # send device data back to client
                 await self.send_json(
                     {
                         "event": DEVICE_EVENT_TYPES.DEVICE_CONNECT.value,
                         "status": True,
                         "message": "Current device data",
                         "data": convert_array_to_dict(
-                            LuaScripts.get_device_data(keys=[self._device], client=redis_client)
+                            LuaScripts.get_device_data(
+                                keys=[self._device],
+                                client=redis_client,
+                            )
                         )
                     }
                 )
@@ -66,7 +71,8 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard("broadcast", self.channel_name)
-        redis_client.hdel(self._device, "channel")
+        redis_client.hdel(self._device_aliases, self._device)
+        redis_client.delete(self._device)
 
     async def receive(self, text_data=None, bytes_data=None):
         """Receive device alias and store in redis"""
@@ -150,16 +156,19 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
 
         if (
             redis_client.hget(self._device, key="channel")
-            and redis_client.hget(self._device, key="alias") == None
+            and redis_client.hget(self._device_aliases, key=self._device) == None
         ):
             # notify the client of the scanned device details
             await self.send_json(
                 {
-                    "event": SCAN_EVENT_TYPES.SCAN_NOTIFY.value,
+                    "event": SCAN_EVENT_TYPES.SCAN_CONNECT.value,
                     "status": True,
                     "message": "Scanned device data",
                     "data": convert_array_to_dict(
-                        LuaScripts.get_device_data(keys=[self._device], client=redis_client)
+                        LuaScripts.get_device_data(
+                            keys=[self._device],
+                            client=redis_client,
+                        )
                     ),
                 }
             )
@@ -170,7 +179,7 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 {
                     "type": "chat.message",
                     "data": {
-                        "event": SCAN_EVENT_TYPES.SCAN_NOTIFY.value,
+                        "event": SCAN_EVENT_TYPES.SCAN_CONNECT.value,
                         "status": True,
                         "message": "QR code scanned successfully",
                     },
@@ -181,9 +190,9 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
             # notify the client of the scanned device details, then close connection
             await self.send_json(
                 {
-                    "event": SCAN_EVENT_TYPES.SCAN_NOTIFY.value,
+                    "event": SCAN_EVENT_TYPES.SCAN_CONNECT.value,
                     "status": False,
-                    "message": "Channel not found",
+                    "message": "Invalid channel or device already setup",
                 }
             )
             await self.close()
@@ -214,7 +223,7 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
 
             if alias_status:
                 alias_msg, alias_name, alias_status = format_alias(
-                    did=self._did, alias=alias_name
+                    device=self._device, alias=alias_name
                 )
 
                 if alias_status:
@@ -233,22 +242,22 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                                 "status": True,
                                 "message": alias_msg,
                                 "data": convert_array_to_dict(
-                                    LuaScripts.get_device_data(keys=[self._device], client=redis_client)
+                                    LuaScripts.get_device_data(
+                                        keys=[self._device],
+                                        client=redis_client,
+                                    )
                                 ),
                             },
                         },
                     )
 
-            # SUCCESS | FAILURE: notify the client
+            # SUCCESS | FAILURE: notify the client only
             await self.send_json(
                 {
                     "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,
                     "status": alias_status,
                     "message": alias_msg,
-                    "data": convert_array_to_dict(
-                        LuaScripts.get_device_data(keys=[self._device], client=redis_client)
-                    ) if alias_status
-                    else {"alias": None},
+                    "data": {"alias": alias_name},
                 }
             )
 

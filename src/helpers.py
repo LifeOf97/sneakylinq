@@ -61,4 +61,4 @@ def format_alias(device: str, alias: str) -> tuple[str, str, bool]:
         status = False
         message = "Alias already taken"
 
-    return (message, alias, status)
+    return message, alias, status
