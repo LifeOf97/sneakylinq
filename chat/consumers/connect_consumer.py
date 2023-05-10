@@ -38,13 +38,12 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 # accept connection
                 await self.accept()
 
-                # store data in redis
+                # store data in redis as hash and give it an expire option
                 redis_client.hset(
                     name=self._device,
                     mapping={
                         "did": f"{self._did}",
                         "channel": f"{self.channel_name}",
-                        "ttl": f"{(timezone.now() + timezone.timedelta(hours=2)).timestamp()}",
                     },
                 )
 
@@ -108,6 +107,15 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                     redis_client.hset(
                         self._device_aliases, key=self._device, value=alias_name
                     )
+
+                    # connection time-to-live date object
+                    ttl = timezone.now() + timezone.timedelta(hours=2)
+
+                    # update device data to include the time to live value. And also
+                    # set an expire option to the device data in redis store using the
+                    # ttl as the value.
+                    redis_client.hset(self._device, key="ttl", value=ttl.timestamp())
+                    redis_client.expireat(self._device, ttl)
 
                     # notify client if successfull.
                     await self.channel_layer.send(
@@ -231,6 +239,16 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                     redis_client.hset(
                         self._device_aliases, key=self._device, value=alias_name
                     )
+
+                    # connection time-to-live date object
+                    ttl = timezone.now() + timezone.timedelta(hours=2)
+
+                    # update device data to include the time to live value. And also
+                    # set an expire option to the device data in redis store using the
+                    # ttl as the value.
+                    redis_client.hset(self._device, key="ttl", value=ttl.timestamp())
+                    redis_client.expireat(self._device, ttl)
+
 
                     # SUCCESS: notify device with the qr code.
                     await self.channel_layer.send(
