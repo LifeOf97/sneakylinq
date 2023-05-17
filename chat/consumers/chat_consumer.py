@@ -101,7 +101,6 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                         "message": "Message",
                         "data": {
                             "from": redis_client.hget(self.device_alias, self.device),
-                            "to": to_alias,
                             "message": message,
                         },
                     },
