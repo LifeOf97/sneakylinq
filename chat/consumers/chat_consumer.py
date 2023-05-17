@@ -88,24 +88,33 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                 }
             )
         else:
-            await self.channel_layer.send(
-                redis_client.hget(
-                    redis_client.hget(self.alias_device, to_alias),
-                    "channel",
-                ),
-                {
-                    "type": "chat.message",
-                    "data": {
-                        "event": CHAT_EVENT_TYPES.CHAT_MESSAGE.value,
-                        "status": True,
-                        "message": "Message",
+            try:
+                await self.channel_layer.send(
+                    redis_client.hget(
+                        redis_client.hget(self.alias_device, to_alias),
+                        "channel",
+                    ),
+                    {
+                        "type": "chat.message",
                         "data": {
-                            "from": redis_client.hget(self.device_alias, self.device),
-                            "message": message,
+                            "event": CHAT_EVENT_TYPES.CHAT_MESSAGE.value,
+                            "status": True,
+                            "message": "Message",
+                            "data": {
+                                "from": redis_client.hget(self.device_alias, self.device),
+                                "message": message,
+                            },
                         },
                     },
-                },
-            )
+                )
+            except Exception:
+                await self.send_json(
+                    {
+                        "event": CHAT_EVENT_TYPES.CHAT_MESSAGE.value,
+                        "status": False,
+                        "message": f"Message not sent. {to_alias} is offline",
+                    }
+                )
 
     async def chat_message(self, event):
         await self.send_json(event["data"])
@@ -117,5 +126,5 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
             self.alias_device,
             redis_client.hget(self.device_alias, self.device),
         )
-        redis_client.hdel(self.device_aliases, self.device)
+        redis_client.hdel(self.device_alias, self.device)
         redis_client.delete(self.device)
