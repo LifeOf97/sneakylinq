@@ -30,7 +30,6 @@ class LuaScripts:
     return device_data
     """
 
-
     _set_alias_device = """
     redis.setresp(3)
 
@@ -45,7 +44,6 @@ class LuaScripts:
     return true
     """
 
-
     get_device_data = redis_client.register_script(_get_device_data)
     """
     Redis lua script to get complete device info
@@ -54,5 +52,6 @@ class LuaScripts:
     set_alias_device = redis_client.register_script(_set_alias_device)
     """
     Redis lua script to set/update the alias:device hash. Where key is device alias
-    and value is device:did
+    and value is device:did. We use this to store each alias/device:did to easily
+    retreive device:did when needed.
     """
