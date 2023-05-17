@@ -1,13 +1,31 @@
+// {
+//     "editor.formatOnSave": true,
+//     "editor.defaultFormatter": "ms-python.black-formatter",
+//     "editor.formatOnSave": true,
+//     "editor.codeActionsOnSave": {
+//         "source.organizeImports": true
+//     },
+//     "isort.args": [
+//         "--profile",
+//         "black"
+//     ],
+//     "python.analysis.typeCheckingMode": "off",
+// }
 {
     "editor.formatOnSave": true,
-    "editor.defaultFormatter": "ms-python.black-formatter",
-    "editor.formatOnSave": true,
-    "editor.codeActionsOnSave": {
-        "source.organizeImports": true
-    },
-    "isort.args": [
+    "python.pythonPath": "./venv/bin/python3",
+    "python.formatting.provider": "none",
+    "python.formatting.blackArgs": [
+        "--line-length=99"
+    ],
+    "python.sortImports.args": [
         "--profile",
         "black"
     ],
-    "python.analysis.typeCheckingMode": "off",
+    "[python]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        },
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    }
 }

@@ -34,6 +34,9 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 # accept connection
                 await self.accept()
 
+                # execute this lua script
+                LuaScripts.set_alias_device(keys=[self.device], client=redis_client)
+
                 # connection time-to-live date object
                 ttl = timezone.now() + timezone.timedelta(hours=2)
 
@@ -65,16 +68,13 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                     }
                 )
 
-                # call lua script
-                LuaScripts.set_alias_device(keys=[self.device], client=redis_client)
-
-            else: # uuid is not valid
+            else:  # uuid is not valid
                 await self.close()
 
     async def receive_json(self, content, **kwargs):
         """Receive device alias and store in redis"""
 
-        try: # get device alias
+        try:  # get device alias
             alias: str = content["alias"]
         except (TypeError, JSONDecodeError):
             await self.send_json(
@@ -103,12 +103,8 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 if alias_status:
                     # add the device alias to device:alias & alias:device hash
                     # in redis store
-                    redis_client.hset(
-                        self.device_alias, key=self.device, value=alias_name
-                    )
-                    redis_client.hset(
-                        self.alias_device, key=alias_name, value=self.device
-                    )
+                    redis_client.hset(self.device_alias, key=self.device, value=alias_name)
+                    redis_client.hset(self.alias_device, key=alias_name, value=self.device)
 
                     # connection time-to-live date object
                     ttl = timezone.now() + timezone.timedelta(hours=2)
@@ -125,9 +121,7 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                             "status": True,
                             "message": alias_msg,
                             "data": convert_array_to_dict(
-                                LuaScripts.get_device_data(
-                                    keys=[self.device], client=redis_client
-                                )
+                                LuaScripts.get_device_data(keys=[self.device], client=redis_client)
                             ),
                         }
                     )
@@ -200,7 +194,7 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 },
             )
 
-        else: 
+        else:
             # if device with channel already has an alias or channel not present
             await self.send_json(
                 {
@@ -243,12 +237,8 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 if alias_status:
                     # add the device alias to device:alias & alias:device hash
                     # in redis store
-                    redis_client.hset(
-                        self.device_alias, key=self.device, value=alias_name
-                    )
-                    redis_client.hset(
-                        self.alias_device, key=alias_name, value=self.device
-                    )
+                    redis_client.hset(self.device_alias, key=self.device, value=alias_name)
+                    redis_client.hset(self.alias_device, key=alias_name, value=self.device)
 
                     # connection time-to-live date object
                     ttl = timezone.now() + timezone.timedelta(hours=2)
