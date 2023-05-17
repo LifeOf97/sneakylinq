@@ -1,4 +1,5 @@
 from django.utils import timezone
+from redis import exceptions as redis_exceptions
 
 from chat.events import CHAT_EVENT_TYPES, DEVICE_EVENT_TYPES
 from chat.lua_scripts import LuaScripts
@@ -107,12 +108,12 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                         },
                     },
                 )
-            except Exception:
+            except redis_exceptions.DataError:
                 await self.send_json(
                     {
                         "event": CHAT_EVENT_TYPES.CHAT_MESSAGE.value,
                         "status": False,
-                        "message": f"Message not sent. {to_alias} is offline",
+                        "message": f"{to_alias} is offline or not available",
                     }
                 )
 
