@@ -1,5 +1,4 @@
 import json
-import uuid
 from json.decoder import JSONDecodeError
 
 from django.utils import timezone
@@ -71,11 +70,11 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
             else:  # uuid is not valid
                 await self.close()
 
-    async def receive_json(self, content, **kwargs):
+    async def receive(self, text_data=None, byte_data=None):
         """Receive device alias and store in redis"""
 
         try:  # get device alias
-            alias: str = content["alias"]
+            alias: str = json.loads(text_data)["alias"]
         except (TypeError, JSONDecodeError):
             await self.send_json(
                 {
@@ -84,12 +83,12 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                     "message": "Message(s) must be in json format",
                 }
             )
-        except KeyError:
+        except KeyError as e:
             await self.send_json(
                 {
                     "event": DEVICE_EVENT_TYPES.DEVICE_SETUP.value,
                     "status": False,
-                    "message": "Please provide your alias",
+                    "message": f"Missing key {str(e)}",
                 }
             )
         else:
@@ -145,7 +144,7 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
         redis_client.hdel(self.device, "channel")
         redis_client.hdel(
             self.alias_device,
-            redis_client.hget(self.device_alias, self.device),
+            f"{redis_client.hget(self.device_alias, self.device)}",
         )
 
 
@@ -166,12 +165,12 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
             redis_client.hget(self.device, key="channel")
             and redis_client.hget(self.device_alias, key=self.device) == None
         ):
-            # notify the client of the scanned device details
+            # SUCCESS: notify the client of the scanned device details
             await self.send_json(
                 {
                     "event": SCAN_EVENT_TYPES.SCAN_CONNECT.value,
                     "status": True,
-                    "message": "Scanned device data",
+                    "message": "Scanned succeccfully",
                     "data": convert_array_to_dict(
                         LuaScripts.get_device_data(
                             keys=[self.device],
@@ -181,7 +180,7 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 }
             )
 
-            # also notify device with the qr code.
+            # SUCCESS: notify device with the qr code.
             await self.channel_layer.send(
                 redis_client.hget(self.device, key="channel"),
                 {
@@ -189,7 +188,7 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                     "data": {
                         "event": SCAN_EVENT_TYPES.SCAN_CONNECT.value,
                         "status": True,
-                        "message": "QR code scanned successfully",
+                        "message": "Scanned successfully",
                     },
                 },
             )
@@ -205,25 +204,25 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
             )
             await self.close()
 
-    async def receive_json(self, content=None):
+    async def receive(self, text_data=None, byte_data=None):
         """Receive device alias and store in redis"""
 
         try:
-            alias: str = content["alias"]
+            alias: str = json.loads(text_data)["alias"]
+        except KeyError as e:
+            await self.send_json(
+                {
+                    "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,
+                    "status": False,
+                    "message": f"Missing value {str(e)}",
+                }
+            )
         except (TypeError, JSONDecodeError):
             await self.send_json(
                 {
                     "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,
                     "status": False,
                     "message": "Message(s) must be in json format",
-                }
-            )
-        except KeyError:
-            await self.send_json(
-                {
-                    "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,
-                    "status": False,
-                    "message": "Please provide your alias",
                 }
             )
         else:
@@ -235,7 +234,7 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 )
 
                 if alias_status:
-                    # add the device alias to device:alias & alias:device hash
+                    # add the device alias to device:alias & alias:device hashes
                     # in redis store
                     redis_client.hset(self.device_alias, key=self.device, value=alias_name)
                     redis_client.hset(self.alias_device, key=alias_name, value=self.device)
@@ -248,7 +247,7 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                     redis_client.hset(self.device, key="ttl", value=ttl.timestamp())
                     redis_client.expireat(self.device, ttl)
 
-                    # SUCCESS: notify device with the qr code.
+                    # SUCCESS: notify scanned device.
                     await self.channel_layer.send(
                         redis_client.hget(self.device, key="channel"),
                         {
@@ -267,7 +266,7 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                         },
                     )
 
-            # SUCCESS | FAILURE: notify the client only
+            # SUCCESS | FAILURE: notify scanning device
             await self.send_json(
                 {
                     "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,

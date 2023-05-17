@@ -1,7 +1,9 @@
-from django.utils import timezone
+import json
+from json.decoder import JSONDecodeError
+
 from redis import exceptions as redis_exceptions
 
-from chat.events import CHAT_EVENT_TYPES, DEVICE_EVENT_TYPES
+from chat.events import CHAT_EVENT_TYPES
 from chat.lua_scripts import LuaScripts
 from src.utils import (
     BaseAsyncJsonWebsocketConsumer,
@@ -54,7 +56,7 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                 if "alias" not in list(device_data.keys()):
                     await self.send_json(
                         {
-                            "event": DEVICE_EVENT_TYPES.DEVICE_CONNECT.value,
+                            "event": CHAT_EVENT_TYPES.CHAT_CONNECT.value,
                             "status": False,
                             "message": "Device setup not complete",
                         }
@@ -66,7 +68,7 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                 # keep connection
                 await self.send_json(
                     {
-                        "event": DEVICE_EVENT_TYPES.DEVICE_CONNECT.value,
+                        "event": CHAT_EVENT_TYPES.CHAT_CONNECT.value,
                         "status": True,
                         "message": "Current device data",
                         "data": device_data,
@@ -76,10 +78,18 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
             else:  # close if uuid is not valis
                 await self.close()
 
-    async def receive_json(self, content, **kwargs):
+    async def receive(self, text_data=None, byte_data=None):
         try:
-            to_alias: str = content["to"]
-            message: str = content["message"]
+            to_alias: str = json.loads(text_data)["to"]
+            message: str = json.loads(text_data)["message"]
+        except (TypeError, JSONDecodeError):
+            await self.send_json(
+                {
+                    "event": CHAT_EVENT_TYPES.CHAT_MESSAGE.value,
+                    "status": False,
+                    "message": "Message(s) must be in json format",
+                }
+            )
         except KeyError as e:
             await self.send_json(
                 {
@@ -125,7 +135,7 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
 
         redis_client.hdel(
             self.alias_device,
-            redis_client.hget(self.device_alias, self.device),
+            f"{redis_client.hget(self.device_alias, self.device)}",
         )
-        redis_client.hdel(self.device_alias, self.device)
+        # redis_client.hdel(self.device_alias, self.device)
         redis_client.delete(self.device)
