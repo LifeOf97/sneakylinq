@@ -1,3 +1,9 @@
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "src.settings.base"
+addopts = "-v -s -rA -rP --cov=."
+python_files = ["test_*.py", "*_test.py", "tests/*/*.py"]
+
+
 [tool.ruff]
 # Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
 select = ["E", "F"]

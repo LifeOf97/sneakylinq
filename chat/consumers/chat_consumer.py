@@ -134,8 +134,8 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
         await self.channel_layer.group_discard("broadcast", self.channel_name)
 
         redis_client.hdel(
-            self.alias_device,
-            f"{redis_client.hget(self.device_alias, self.device)}",
+            f"{self.alias_device}",
+            f"{redis_client.hget(f'{self.device_alias}', f'{self.device}')}",
         )
         # redis_client.hdel(self.device_alias, self.device)
-        redis_client.delete(self.device)
+        redis_client.delete(f"{self.device}")
