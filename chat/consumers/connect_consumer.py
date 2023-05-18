@@ -15,14 +15,36 @@ from src.utils import (
 
 
 class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
-    """Connect client to websocket server and carry out setup"""
+    """
+    Connect Consumer will:
+
+    1. Accept connections, checks if to keep or discard connection.
+    2. Receive data to set device alias.
+    3. Then Disconnect, when successfully completed.
+    """
 
     async def connect(self):
-        headers: dict = dict(self.scope["headers"])
+        """
+        Accept all connections at first.
 
-        try:  # get device did
-            self.did = headers[b"did"].decode()
-        except KeyError:
+        But only keep connection if the value at index 0 in the request subprotocol
+        is a valid uuid4. If not, notify device and close connection.
+
+        Because we need the uuid4 to keep track of connected devices.
+        """
+
+        try:
+            self.did = self.scope["subprotocols"][0]
+            await self.accept(subprotocol=self.did)
+        except IndexError:
+            await self.accept()
+            await self.send_json(
+                {
+                    "event": DEVICE_EVENT_TYPES.DEVICE_CONNECT.value,
+                    "status": False,
+                    "message": "A valid uuid4 should be at index 0 in subprotocols",
+                }
+            )
             await self.close()
         else:
             if is_valid_uuid(self.did):
@@ -30,11 +52,11 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 self.device = f"device:{self.did}"
                 self.device_groups = f"{self.device}:groups"
 
-                # accept connection
-                await self.accept()
-
                 # execute this lua script
-                LuaScripts.set_alias_device(keys=[self.device], client=redis_client)
+                try:
+                    LuaScripts.set_alias_device(keys=[self.device], client=redis_client)
+                except Exception:
+                    pass
 
                 # connection time-to-live date object
                 ttl = timezone.now() + timezone.timedelta(hours=2)
@@ -68,9 +90,16 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 )
 
             else:  # uuid is not valid
+                await self.send_json(
+                    {
+                        "event": DEVICE_EVENT_TYPES.DEVICE_CONNECT.value,
+                        "status": False,
+                        "message": "A valid uuid4 should be at index 0 in subprotocols",
+                    }
+                )
                 await self.close()
 
-    async def receive(self, text_data=None, byte_data=None):
+    async def receive(self, text_data=None):
         """Receive device alias and store in redis"""
 
         try:  # get device alias
@@ -141,10 +170,10 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
         await self.send_json(event["data"])
 
     async def disconnect(self, code):
-        redis_client.hdel(self.device, "channel")
+        redis_client.hdel(f"{self.device}", "channel")
         redis_client.hdel(
             self.alias_device,
-            f"{redis_client.hget(self.device_alias, self.device)}",
+            f"{redis_client.hget(f'{self.device_alias}', f'{self.device}')}",
         )
 
 
