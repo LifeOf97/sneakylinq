@@ -10,5 +10,5 @@ websocket_urlpatterns = [
         ScanConnectConsumer.as_asgi(),
         name="scan_to_connect",
     ),
-    path("ws/chat/", P2PChatConsumer.as_asgi(), name="chat_connect"),
+    path("ws/chat/p2p/", P2PChatConsumer.as_asgi(), name="chat_p2p_consumer"),
 ]
