@@ -4,7 +4,7 @@ from json.decoder import JSONDecodeError
 from redis import exceptions as redis_exceptions
 
 from chat.events import CHAT_EVENT_TYPES
-from chat.lua_scripts import LuaScripts
+from chat.services.consumers import ConsumerServices
 from src.utils import (
     BaseAsyncJsonWebsocketConsumer,
     convert_array_to_dict,
@@ -14,12 +14,33 @@ from src.utils import (
 
 
 class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
-    async def connect(self):
-        headers: dict = dict(self.scope["headers"])
+    """
+    P2P Chat consumer will:
 
-        try:  # get device did
-            self.did = headers[b"did"].decode()
-        except KeyError:
+    1. Accept connections, checks dvice if to keep or discard connection.
+    2. Receive data to send as chat messages.
+    3. Then Disconnect, when explicitly requested.
+    """
+
+    async def connect(self):
+        """
+        Accept all connections at first.
+
+        But only keep connection if the value at index 0 in the request subprotocol
+        is a valid uuid4 and device setup is complete else close connection.
+        """
+        try:
+            self.did = self.scope["subprotocols"][0]
+            await self.accept(subprotocol=self.did)
+        except IndexError:
+            await self.accept()
+            await self.send_json(
+                {
+                    "event": CHAT_EVENT_TYPES.CHAT_CONNECT.value,
+                    "status": False,
+                    "message": "A valid uuid should be at index 0 in subprotocols",
+                }
+            )
             await self.close()
         else:
             if is_valid_uuid(self.did):
@@ -27,29 +48,17 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                 self.device = f"device:{self.did}"
                 self.device_groups = f"{self.device}:groups"
 
-                # accept connection, add device channel to broadcast group
-                await self.accept()
+                # add device channel to broadcast group
                 await self.channel_layer.group_add("broadcast", self.channel_name)
 
-                # execute this lua script
-                LuaScripts.set_alias_device(keys=[self.device], client=redis_client)
-
-                # store data as hash type in redis store
-                redis_client.hset(
-                    name=self.device,
-                    mapping={
-                        "did": f"{self.did}",
-                        "channel": f"{self.channel_name}",
-                    },
+                ConsumerServices.set_device_data(
+                    device=self.device,
+                    did=self.did,
+                    channel=self.channel_name,
                 )
 
-                # get device data
-                device_data: dict = convert_array_to_dict(
-                    LuaScripts.get_device_data(
-                        keys=[self.device],
-                        client=redis_client,
-                    )
-                )
+                # get device data at index 0, because dict has been tupled :(
+                device_data: dict = ConsumerServices.get_device_data(device=self.device)[0]
 
                 # if device setup is not complete, notify device and
                 # close connection
@@ -62,23 +71,22 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                         }
                     )
                     await self.close(code=1000)
-                    return
 
-                # if device setup is complete, notify device and
-                # keep connection
-                await self.send_json(
-                    {
-                        "event": CHAT_EVENT_TYPES.CHAT_CONNECT.value,
-                        "status": True,
-                        "message": "Current device data",
-                        "data": device_data,
-                    }
-                )
+                else:
+                    await self.send_json(
+                        {
+                            "event": CHAT_EVENT_TYPES.CHAT_CONNECT.value,
+                            "status": True,
+                            "message": "Current device data",
+                            "data": device_data,
+                        }
+                    )
 
             else:  # close if uuid is not valis
-                await self.close()
+                await self.close(code=1000)
 
-    async def receive(self, text_data=None, byte_data=None):
+    async def receive(self, text_data=None):
+        """Receive chat messages and send to reciepient"""
         try:
             to_alias: str = json.loads(text_data)["to"]
             message: str = json.loads(text_data)["message"]
@@ -131,11 +139,17 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
         await self.send_json(event["data"])
 
     async def disconnect(self, code):
+        """
+        Discard device channel from broadcast group. And delete/reset device
+        data in redis store.
+
+        Notice we provide values in redis_client in f-string format, this is
+        because redis sometimes raises a ValueError when values are passed as-is.
+        """
         await self.channel_layer.group_discard("broadcast", self.channel_name)
 
         redis_client.hdel(
             f"{self.alias_device}",
             f"{redis_client.hget(f'{self.device_alias}', f'{self.device}')}",
         )
-        # redis_client.hdel(self.device_alias, self.device)
         redis_client.delete(f"{self.device}")
