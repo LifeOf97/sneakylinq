@@ -1,17 +1,9 @@
 import json
 from json.decoder import JSONDecodeError
 
-from django.utils import timezone
-
 from chat.events import DEVICE_EVENT_TYPES, SCAN_EVENT_TYPES
-from chat.lua_scripts import LuaScripts
-from src.helpers import format_alias, is_valid_alias
-from src.utils import (
-    BaseAsyncJsonWebsocketConsumer,
-    convert_array_to_dict,
-    is_valid_uuid,
-    redis_client,
-)
+from chat.services.consumers import ConsumerServices
+from src.utils import BaseAsyncJsonWebsocketConsumer, is_valid_uuid, redis_client
 
 
 class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
@@ -42,7 +34,7 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 {
                     "event": DEVICE_EVENT_TYPES.DEVICE_CONNECT.value,
                     "status": False,
-                    "message": "A valid uuid4 should be at index 0 in subprotocols",
+                    "message": "A valid uuid should be at index 0 in subprotocols",
                 }
             )
             await self.close()
@@ -52,27 +44,11 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 self.device = f"device:{self.did}"
                 self.device_groups = f"{self.device}:groups"
 
-                # execute this lua script
-                try:
-                    LuaScripts.set_alias_device(keys=[self.device], client=redis_client)
-                except Exception:
-                    pass
-
-                # connection time-to-live date object
-                ttl = timezone.now() + timezone.timedelta(hours=2)
-
-                # store data as hash type in redis store, also set an expire
-                # option to the device data in redis store using
-                # the ttl as the value.
-                redis_client.hset(
-                    name=self.device,
-                    mapping={
-                        "did": f"{self.did}",
-                        "channel": f"{self.channel_name}",
-                        "ttl": ttl.timestamp(),
-                    },
+                ConsumerServices.set_device_data(
+                    device=self.device,
+                    did=self.did,
+                    channel=self.channel_name,
                 )
-                redis_client.expireat(self.device, ttl)
 
                 # send device data back to client
                 await self.send_json(
@@ -80,12 +56,7 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                         "event": DEVICE_EVENT_TYPES.DEVICE_CONNECT.value,
                         "status": True,
                         "message": "Current device data",
-                        "data": convert_array_to_dict(
-                            LuaScripts.get_device_data(
-                                keys=[self.device],
-                                client=redis_client,
-                            )
-                        ),
+                        "data": ConsumerServices.get_device_data(self.device),
                     }
                 )
 
@@ -94,7 +65,7 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                     {
                         "event": DEVICE_EVENT_TYPES.DEVICE_CONNECT.value,
                         "status": False,
-                        "message": "A valid uuid4 should be at index 0 in subprotocols",
+                        "message": "A valid uuid should be at index 0 in subprotocols",
                     }
                 )
                 await self.close()
@@ -121,50 +92,36 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 }
             )
         else:
-            alias_msg, alias_name, alias_status = is_valid_alias(alias=alias)
+            message, alias, status = ConsumerServices.format_and_verify_alias(
+                device=self.device, alias=alias
+            )
 
-            if alias_status:
-                alias_msg, alias_name, alias_status = format_alias(
-                    device=self.device, alias=alias_name
+            if status:  # SUCCESS: save and notify client.
+                ConsumerServices.set_device_alias(
+                    device=self.device,
+                    alias=alias,
+                    device_alias=self.device_alias,
+                    alias_device=self.alias_device,
                 )
 
-                if alias_status:
-                    # add the device alias to device:alias & alias:device hash
-                    # in redis store
-                    redis_client.hset(self.device_alias, key=self.device, value=alias_name)
-                    redis_client.hset(self.alias_device, key=alias_name, value=self.device)
+                await self.send_json(
+                    {
+                        "event": DEVICE_EVENT_TYPES.DEVICE_SETUP.value,
+                        "status": status,
+                        "message": message,
+                        "data": ConsumerServices.get_device_data(self.device),
+                    }
+                )
 
-                    # connection time-to-live date object
-                    ttl = timezone.now() + timezone.timedelta(hours=2)
-
-                    # in redis store, update device data ttl value. And also set an expire
-                    # option to the device data in redis store using the ttl as the value.
-                    redis_client.hset(self.device, key="ttl", value=ttl.timestamp())
-                    redis_client.expireat(self.device, ttl)
-
-                    # SUCCESS: notify client.
-                    await self.send_json(
-                        {
-                            "event": DEVICE_EVENT_TYPES.DEVICE_SETUP.value,
-                            "status": True,
-                            "message": alias_msg,
-                            "data": convert_array_to_dict(
-                                LuaScripts.get_device_data(keys=[self.device], client=redis_client)
-                            ),
-                        }
-                    )
-
-                    return
-
-            # FAILURE: notify client
-            await self.send_json(
-                {
-                    "event": DEVICE_EVENT_TYPES.DEVICE_SETUP.value,
-                    "status": alias_status,
-                    "message": alias_msg,
-                    "data": {"alias": alias_name},
-                }
-            )
+            else:  # FAILURE: notify client
+                await self.send_json(
+                    {
+                        "event": DEVICE_EVENT_TYPES.DEVICE_SETUP.value,
+                        "status": status,
+                        "message": message,
+                        "data": {"alias": alias},
+                    }
+                )
 
     async def chat_message(self, event):
         await self.send_json(event["data"])
@@ -179,11 +136,22 @@ class ConnectConsumer(BaseAsyncJsonWebsocketConsumer):
 
 class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
     """
-    Implements a scan to connect feature via QR Code scanning
-    and carries out device setup.
+    Implements a scan to connect feature via QR Code scanning. It
+
+    1. Accept connections.
+    2. Receive data to set device alias.
+    3. Then Disconnect, when successfully completed.
     """
 
     async def connect(self):
+        """
+        Since the path() function in the routers url file automatically confirms
+        if a valid uuid was provided as the required url kwarg 'did'. We can
+        be rest assured that 'self.did' is assigned a valid uuid.
+
+        Also checks if a device with such uuid has a channel and and only keep
+        connection if device alias is not set.
+        """
         self.did = self.scope["url_route"]["kwargs"]["did"]
         self.device = f"device:{self.did}"
         self.device_groups = f"{self.device}:groups"
@@ -200,16 +168,11 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                     "event": SCAN_EVENT_TYPES.SCAN_CONNECT.value,
                     "status": True,
                     "message": "Scanned succeccfully",
-                    "data": convert_array_to_dict(
-                        LuaScripts.get_device_data(
-                            keys=[self.device],
-                            client=redis_client,
-                        )
-                    ),
+                    "data": ConsumerServices.get_device_data(device=self.device),
                 }
             )
 
-            # SUCCESS: notify device with the qr code.
+            # SUCCESS: notify the scanned device.
             await self.channel_layer.send(
                 redis_client.hget(self.device, key="channel"),
                 {
@@ -222,8 +185,7 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 },
             )
 
-        else:
-            # if device with channel already has an alias or channel not present
+        else:  # device with channel already has an alias or channel not present
             await self.send_json(
                 {
                     "event": SCAN_EVENT_TYPES.SCAN_CONNECT.value,
@@ -255,57 +217,42 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                 }
             )
         else:
-            alias_msg, alias_name, alias_status = is_valid_alias(alias=alias)
+            message, alias, status = ConsumerServices.format_and_verify_alias(
+                device=self.device, alias=alias
+            )
 
-            if alias_status:
-                alias_msg, alias_name, alias_status = format_alias(
-                    device=self.device, alias=alias_name
+            if status:  # SUCCESS: save and notify the scanned device.
+                ConsumerServices.set_device_alias(
+                    device=self.device,
+                    alias=alias,
+                    device_alias=self.device_alias,
+                    alias_device=self.alias_device,
                 )
 
-                if alias_status:
-                    # add the device alias to device:alias & alias:device hashes
-                    # in redis store
-                    redis_client.hset(self.device_alias, key=self.device, value=alias_name)
-                    redis_client.hset(self.alias_device, key=alias_name, value=self.device)
-
-                    # connection time-to-live date object
-                    ttl = timezone.now() + timezone.timedelta(hours=2)
-
-                    # in redis store, update device data ttl value. And also set an expire
-                    # option to the device data in redis store using the ttl as the value.
-                    redis_client.hset(self.device, key="ttl", value=ttl.timestamp())
-                    redis_client.expireat(self.device, ttl)
-
-                    # SUCCESS: notify scanned device.
-                    await self.channel_layer.send(
-                        redis_client.hget(self.device, key="channel"),
-                        {
-                            "type": "chat.message",
-                            "data": {
-                                "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,
-                                "status": True,
-                                "message": alias_msg,
-                                "data": convert_array_to_dict(
-                                    LuaScripts.get_device_data(
-                                        keys=[self.device],
-                                        client=redis_client,
-                                    )
-                                ),
-                            },
+                await self.channel_layer.send(
+                    redis_client.hget(self.device, key="channel"),
+                    {
+                        "type": "chat.message",
+                        "data": {
+                            "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,
+                            "status": status,
+                            "message": message,
+                            "data": ConsumerServices.get_device_data(device=self.device),
                         },
-                    )
+                    },
+                )
 
             # SUCCESS | FAILURE: notify scanning device
             await self.send_json(
                 {
                     "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,
-                    "status": alias_status,
-                    "message": alias_msg,
-                    "data": {"alias": alias_name},
+                    "status": status,
+                    "message": message,
+                    "data": {"alias": alias},
                 }
             )
 
-            if alias_status:  # gracefully disconnect the scanning device
+            if status:  # gracefully disconnect the scanning device
                 await self.close(code=1000)
 
     async def chat_message(self, event):
