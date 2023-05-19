@@ -3,7 +3,6 @@ import uuid
 from django.utils import timezone
 from django.utils.text import slugify
 
-from chat.events import DEVICE_EVENT_TYPES
 from chat.lua_scripts import LuaScripts
 from src.utils import convert_array_to_dict, redis_client
 
