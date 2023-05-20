@@ -18,9 +18,9 @@ class ConsumerServices:
         Set/update device hash in redis store, also set an expire option to
         the device hash in redis store using the ttl as value.
 
-        @device: Unique device id
-        @did: Device uuid, from the connection subprotocols
-        @channel: Channel given to the consumer on connect
+        :param device: Unique device id
+        :param did: Device uuid, from the connection subprotocols
+        :param channel: Channel given to the consumer on connect
         """
         ttl = timezone.now() + timezone.timedelta(hours=2)
 
@@ -47,10 +47,10 @@ class ConsumerServices:
         """
         Add the device alias to device:alias & alias:device hashes in redis store.
 
-        @device: The name of the hash in redis that holds a particular device data
-        @alias: The alias for the device.
-        @device_alias: This holds the name of the redis hash. Default is 'device:alias'
-        @alias_device: This holds the name of the redis hash. Default is 'alias:device'
+        :param device: The name of the hash in redis that holds a particular device data
+        :param alias: The alias for the device.
+        :param device_alias: This holds the name of the redis hash. Default is 'device:alias'
+        :param alias_device: This holds the name of the redis hash. Default is 'alias:device'
 
         In redis store, update device data ttl value. And also set an expire
         option to the device data in redis store using the ttl as the value.
@@ -76,12 +76,12 @@ class ConsumerServices:
         )
 
     @staticmethod
-    def set_alias_device(device: str) -> None:
+    def set_alias_device(device: str) -> int:
         """
         Call lua script to add the connected device and it's alias
         to the 'alias:device' hash in redis store.
         """
-        LuaScripts.set_alias_device(keys=[device], client=redis_client)
+        return LuaScripts.set_alias_device(keys=[device], client=redis_client)
 
     @staticmethod
     def format_and_validate_alias(alias: str) -> tuple[str, str, bool]:

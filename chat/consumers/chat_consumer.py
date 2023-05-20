@@ -4,13 +4,8 @@ from json.decoder import JSONDecodeError
 from redis import exceptions as redis_exceptions
 
 from chat.events import CHAT_EVENT_TYPES
-from chat.services.consumers import ConsumerServices
-from src.utils import (
-    BaseAsyncJsonWebsocketConsumer,
-    convert_array_to_dict,
-    is_valid_uuid,
-    redis_client,
-)
+from chat.services.consumer_services import ConsumerServices
+from src.utils import BaseAsyncJsonWebsocketConsumer, is_valid_uuid, redis_client
 
 
 class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
@@ -58,7 +53,9 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                 )
 
                 # get device data at index 0, because dict has been tupled :(
-                device_data: dict = ConsumerServices.get_device_data(device=self.device)[0]
+                device_data: dict = ConsumerServices.get_device_data(
+                    device=self.device
+                )[0]
 
                 # if device setup is not complete, notify device and
                 # close connection
@@ -120,7 +117,9 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                             "status": True,
                             "message": "Message",
                             "data": {
-                                "from": redis_client.hget(self.device_alias, self.device),
+                                "from": redis_client.hget(
+                                    self.device_alias, self.device
+                                ),
                                 "message": message,
                             },
                         },
