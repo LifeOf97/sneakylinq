@@ -2,7 +2,7 @@ import json
 from json.decoder import JSONDecodeError
 
 from chat.events import DEVICE_EVENT_TYPES, SCAN_EVENT_TYPES
-from chat.services.consumers import ConsumerServices
+from chat.services.consumer_services import ConsumerServices
 from src.utils import BaseAsyncJsonWebsocketConsumer, is_valid_uuid, redis_client
 
 
@@ -237,7 +237,9 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                             "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,
                             "status": status,
                             "message": message,
-                            "data": ConsumerServices.get_device_data(device=self.device),
+                            "data": ConsumerServices.get_device_data(
+                                device=self.device
+                            ),
                         },
                     },
                 )
