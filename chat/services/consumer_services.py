@@ -90,20 +90,16 @@ class ConsumerServices:
         of an alias.
 
         Required
-        @alias: The value to format then validate.
+        :param alias: The value to format then validate.
         """
         alias: str = slugify(str(alias).lower()).replace("-", "_")
 
-        message: str | None = None
+        message: str = "Alias formated successfully"
         status: bool = True
 
-        if "." in alias:
+        if alias.isnumeric():
             status = False
-            message = "Alias cannot contain period (.) sign."
-
-        elif alias.isnumeric():
-            status = False
-            message = "Alias must be a mix of letters & numbers, and can contain underscores"
+            message = "Alias must be a mix of alphanumeric characters"
 
         elif len(alias) < 4 or len(alias) > 15:
             status = False
@@ -126,8 +122,8 @@ class ConsumerServices:
         Alias are stored in redis as hash, with name "device:alias" using
         'device' as key and 'alias' as value.
 
-        @device: Device used as the key.
-        @alias: The new device alias to set, used as the value.
+        :param device: Device used as the key.
+        :param alias: The new device alias to set, used as the value.
         """
         message, alias, status = ConsumerServices.format_and_validate_alias(alias)
 
