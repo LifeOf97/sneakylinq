@@ -7,18 +7,20 @@ from tests.mocks import MockLuaScript, MockRedisClient
 
 
 @pytest.fixture
-def mock_redis_hset(monkeypatch: MonkeyPatch, name: str, mapping: dict):
-    monkeypatch.setattr(
-        redis_client,
-        "hset",
-        MockRedisClient.hset(name=name, mapping=mapping),
-    )
+def mock_redis_hset(monkeypatch: MonkeyPatch):
+    monkeypatch.setattr(redis_client, "hset", MockRedisClient.hset)
+
+
+@pytest.fixture
+def mock_redis_hget(monkeypatch: MonkeyPatch):
+    monkeypatch.setattr(redis_client, "hget", MockRedisClient.hget)
+
+
+@pytest.fixture
+def mock_redis_expireat(monkeypatch: MonkeyPatch):
+    monkeypatch.setattr(redis_client, "expireat", MockRedisClient.expireat)
 
 
 @pytest.fixture
 def mock_luascript_set_alias_device(monkeypatch: MonkeyPatch):
-    monkeypatch.setattr(
-        LuaScripts,
-        "set_alias_device",
-        MockLuaScript.set_alias_device,
-    )
+    monkeypatch.setattr(LuaScripts, "set_alias_device", MockLuaScript.set_alias_device)
