@@ -160,7 +160,7 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
 
         if (
             redis_client.hget(self.device, key="channel")
-            and redis_client.hget(self.device_alias, key=self.device) == None
+            and redis_client.hget(self.device_alias, key=self.device) is None
         ):
             # SUCCESS: notify the client of the scanned device details
             await self.send_json(
@@ -237,9 +237,7 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
                             "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,
                             "status": status,
                             "message": message,
-                            "data": ConsumerServices.get_device_data(
-                                device=self.device
-                            ),
+                            "data": ConsumerServices.get_device_data(device=self.device),
                         },
                     },
                 )

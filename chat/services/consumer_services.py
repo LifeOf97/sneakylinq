@@ -55,12 +55,12 @@ class ConsumerServices:
         In redis store, update device data ttl value. And also set an expire
         option to the device data in redis store using the ttl as the value.
         """
-        redis_client.hset(device_alias, key=device, value=alias)
-        redis_client.hset(alias_device, key=alias, value=device)
+        redis_client.hset(device_alias, mapping={device: alias})
+        redis_client.hset(alias_device, mapping={alias: device})
 
         ttl = timezone.now() + timezone.timedelta(hours=2)
 
-        redis_client.hset(device, key="ttl", value=ttl.timestamp())
+        redis_client.hset(device, mapping={"ttl": ttl.timestamp()})
         redis_client.expireat(device, ttl)
 
     @staticmethod
@@ -73,7 +73,7 @@ class ConsumerServices:
                     client=redis_client,
                 )
             ),
-        )
+        )[0]
 
     @staticmethod
     def set_alias_device(device: str) -> int:

@@ -1,10 +1,19 @@
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 
 
 class MockRedisClient:
     redis_store: dict = {
-        "device_alias": {},
-        "alias_device": {},
+        "device:alias": {
+            "device:001": "testalias_001.linq",
+            "device:002": "testalias_002.linq",
+            "device:003": "testalias_003.linq",
+        },
+        "alias:device": {
+            "testalias_001.linq": "device:001",
+            "testalias_002.linq": "device:001",
+            "testalias_003.linq": "device:001",
+        },
     }
 
     @staticmethod
@@ -15,9 +24,19 @@ class MockRedisClient:
         return 0
 
     @staticmethod
-    def hget(name: str, key: str) -> str | None:
+    def hget(name: str, key: str | None = None) -> dict | str | None:
         try:
-            return MockRedisClient.redis_store[name][key]
+            if key:
+                return MockRedisClient.redis_store[name][key]
+            else:
+                return MockRedisClient.redis_store[name]
+        except KeyError:
+            return None
+
+    @staticmethod
+    def hvals(name: str) -> list | None:
+        try:
+            return MockRedisClient.redis_store[name].values()
         except KeyError:
             return None
 
@@ -27,13 +46,30 @@ class MockRedisClient:
 
 
 class MockLuaScript:
-    @staticmethod
-    def set_alias_device(keys: str, client=None) -> int:
-        """
-        Here redis method to execute a lua script gets it's keys as list
-        so we need to index the values we need, when calling certain redis
-        methods.
-        """
-        device = MockRedisClient.hget(name="device_alias", key=keys[0]) or keys[0]
+    """
+    Here, redis methods to execute a lua script gets it's keys as list
+    so we need to index the values we need, when calling certain redis
+    methods.
+    """
 
-        return MockRedisClient.hset(name="alias_device", mapping={"tester": device})
+    @staticmethod
+    def set_alias_device(keys: list, client=None) -> int:
+        device = MockRedisClient.hget(name="device:alias", key=keys[0]) or keys[0]
+
+        return MockRedisClient.hset(name="alias:device", mapping={"testalias": device})
+
+    @staticmethod
+    def get_device_data(keys: list, client=None) -> dict:
+        # first set device data
+        MockRedisClient().hset(
+            name=keys[0],
+            mapping={
+                "did": str(uuid.uuid4()),
+                "channel": "specific_channel_name_auto_generated",
+                "ttl": (datetime.now() + timedelta(hours=2)).timestamp(),
+                "alias": "testalias",
+            },
+        )
+
+        # Then get device data
+        return MockRedisClient().hget(name=keys[0])
