@@ -1,7 +1,7 @@
-import pytest
-from channels.testing import WebsocketCommunicator
+# import pytest
+# from channels.testing import WebsocketCommunicator
 
-from chat.consumers.connect_consumer import ConnectConsumer
+# from chat.consumers.connect_consumer import ConnectConsumer
 
 # class TestConnectConsumer:
 #     # @pytest.mark.asyncio

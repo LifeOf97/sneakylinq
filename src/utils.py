@@ -5,9 +5,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
 from src import env
 
-redis_client = redis.Redis(
-    host=env.REDIS_SERVER, port=env.REDIS_PORT, decode_responses=True
-)
+redis_client = redis.Redis(host=env.REDIS_SERVER, port=env.REDIS_PORT, decode_responses=True)
 
 
 class BaseAsyncJsonWebsocketConsumer(AsyncJsonWebsocketConsumer):
@@ -49,7 +47,8 @@ def is_valid_uuid(value: uuid.UUID):
 
 def convert_array_to_dict(value: list | tuple) -> dict:
     """
-    Using dictionary comprehension, convert list or tuple to dict.
+    Using dictionary comprehension, convert list or tuple to dict. If
+    value is already of type dict, return it.
 
     The number of following elements must be even
     """
@@ -60,6 +59,9 @@ def convert_array_to_dict(value: list | tuple) -> dict:
             )
 
         return {value[x]: value[x + 1] for x in range(0, len(value), 2)}
+
+    elif isinstance(value, dict):
+        return value
 
     else:
         raise TypeError("Wrong type provided, expecting 'list' or 'tuple'")

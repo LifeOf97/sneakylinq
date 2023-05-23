@@ -28,17 +28,17 @@ def test_is_valid_uuid_is_true_with_true_uuids(test_uuid, expected):
     ],
 )
 def test_is_valid_uuid_is_false_with_false_uuids(test_uuid, expected):
-    assert is_valid_uuid(test_uuid) == False
+    assert is_valid_uuid(test_uuid) is False
 
 
 @pytest.mark.parametrize(
     "data",
     [
         {"one", "two", "three", "four"},
-        {1: "one", 2: "two", 3: "three"},
+        "three",
     ],
 )
-def test_convert_array_to_dict_raises_typeerror_if_type_not_list_or_tuple(data):
+def test_convert_array_to_dict_raises_typeerror_if_type_not_list_tuple_or_dict(data):
     with pytest.raises(TypeError):
         _ = convert_array_to_dict(data)
 
@@ -70,3 +70,14 @@ def test_convert_array_to_dict_raises_indexerror_if_elements_in_array_is_not_eve
 )
 def test_convert_array_to_dict_should_do_what_it_says(array, expected):
     assert convert_array_to_dict(array) == expected
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"values": "in", "this": "array", "are": "even"},
+        {1: "one", 2: "two", 3: "three"},
+    ],
+)
+def test_convert_array_to_dict_returns_value_asis_if_value_is_type_dict(data):
+    assert convert_array_to_dict(data) == data

@@ -52,10 +52,8 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                     channel=self.channel_name,
                 )
 
-                # get device data at index 0, because dict has been tupled :(
-                device_data: dict = ConsumerServices.get_device_data(
-                    device=self.device
-                )[0]
+                # get device data
+                device_data: dict = ConsumerServices.get_device_data(device=self.device)
 
                 # if device setup is not complete, notify device and
                 # close connection
@@ -117,9 +115,7 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                             "status": True,
                             "message": "Message",
                             "data": {
-                                "from": redis_client.hget(
-                                    self.device_alias, self.device
-                                ),
+                                "from": redis_client.hget(self.device_alias, self.device),
                                 "message": message,
                             },
                         },
