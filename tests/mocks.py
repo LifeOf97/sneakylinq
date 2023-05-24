@@ -4,6 +4,12 @@ from datetime import datetime, timedelta
 
 class MockRedisClient:
     redis_store: dict = {
+        "device:001": {
+            "did": str(uuid.uuid4()),
+            "channel": "specific_uniqu_str_by_channels",
+            "alias": "testalias_001",
+            "ttl": (datetime.now() + timedelta(hours=2)).timestamp(),
+        },
         "device:alias": {
             "device:001": "testalias_001.linq",
             "device:002": "testalias_002.linq",
@@ -15,6 +21,27 @@ class MockRedisClient:
             "testalias_003.linq": "device:001",
         },
     }
+
+    @staticmethod
+    def reset() -> None:
+        MockRedisClient.redis_store = {
+            "device:001": {
+                "did": str(uuid.uuid4()),
+                "channel": "specific_uniqu_str_by_channels",
+                "alias": "testalias_001",
+                "ttl": (datetime.now() + timedelta(hours=2)).timestamp(),
+            },
+            "device:alias": {
+                "device:001": "testalias_001.linq",
+                "device:002": "testalias_002.linq",
+                "device:003": "testalias_003.linq",
+            },
+            "alias:device": {
+                "testalias_001.linq": "device:001",
+                "testalias_002.linq": "device:001",
+                "testalias_003.linq": "device:001",
+            },
+        }
 
     @staticmethod
     def hset(name: str, mapping: dict) -> int:
@@ -39,6 +66,22 @@ class MockRedisClient:
             return MockRedisClient.redis_store[name].values()
         except KeyError:
             return None
+
+    @staticmethod
+    def hdel(name: str, key: str) -> int:
+        try:
+            MockRedisClient.redis_store[name][key] = None
+            return 1
+        except KeyError:
+            return 0
+
+    @staticmethod
+    def ddel(name: str) -> int:
+        try:
+            MockRedisClient.redis_store[name] = None
+            return 1
+        except KeyError:
+            return 0
 
     @staticmethod
     def expireat(name: str, ttl: datetime) -> None:

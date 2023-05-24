@@ -5,6 +5,7 @@ python_files = ["test_*.py", "*_test.py", "tests/*/*.py"]
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+testpaths = ["tests"]
 
 [tool.ruff]
 # Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.

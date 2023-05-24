@@ -89,14 +89,12 @@ AUTH_PASSWORD_VALIDATORS = [
 DATABASES = {
     "default": {
         "ENGINE": env.DB_ENGINE,
-        "USER": env.DB_USER,
-        "PASSWORD": env.DB_PASSWORD,
-        "NAME": env.DB_NAME,
-        "HOST": env.DB_HOST,
-        "PORT": env.DB_PORT,
-    }
+        "NAME": BASE_DIR / "db.sqlite3",
+        "TEST": {
+            "NAME": BASE_DIR / "db_test.sqlite3",
+        },
+    },
 }
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
@@ -123,7 +121,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Channels
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "BACKEND": env.CHANNEL_LAYER_BACKEND,
         "CONFIG": {
             "hosts": [(env.REDIS_SERVER, env.REDIS_PORT)],
         },

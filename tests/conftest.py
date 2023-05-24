@@ -6,6 +6,20 @@ from src.utils import redis_client
 from tests.mocks import MockLuaScript, MockRedisClient
 
 
+@pytest.fixture(autouse=True)
+def use_in_memory_channel_layer(settings):
+    settings.CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }
+
+
+@pytest.fixture(autouse=True)
+def reset_redis_instance_db():
+    return MockRedisClient.reset()
+
+
 @pytest.fixture
 def mock_redis_hset(monkeypatch: MonkeyPatch):
     monkeypatch.setattr(redis_client, "hset", MockRedisClient.hset)
@@ -19,6 +33,16 @@ def mock_redis_hget(monkeypatch: MonkeyPatch):
 @pytest.fixture
 def mock_redis_hvals(monkeypatch: MonkeyPatch):
     monkeypatch.setattr(redis_client, "hvals", MockRedisClient.hvals)
+
+
+@pytest.fixture
+def mock_redis_hdel(monkeypatch: MonkeyPatch):
+    monkeypatch.setattr(redis_client, "hdel", MockRedisClient.hdel)
+
+
+@pytest.fixture
+def mock_redis_del(monkeypatch: MonkeyPatch):
+    monkeypatch.setattr(redis_client, "del", MockRedisClient.ddel)
 
 
 @pytest.fixture
