@@ -7,7 +7,7 @@ from chat.consumers.scan_consumer import ScanConnectConsumer
 websocket_urlpatterns = [
     path("ws/connect/", ConnectConsumer.as_asgi(), name="connect_consumer"),
     path(
-        "ws/connect/scan/<uuid:did>/",
+        "ws/scan/connect/<uuid:did>/",
         ScanConnectConsumer.as_asgi(),
         name="scan_to_connect",
     ),

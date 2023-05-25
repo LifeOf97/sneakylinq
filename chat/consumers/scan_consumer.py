@@ -21,7 +21,7 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
         if a valid uuid was provided as the required url kwarg 'did'. We can
         be rest assured that 'self.did' is assigned a valid uuid.
 
-        Also checks if a device with such uuid has a channel and and only keep
+        Also checks if a device with such uuid has a channel and only keep
         connection if device alias is not set.
         """
         self.did = self.scope["url_route"]["kwargs"]["did"]
@@ -72,20 +72,20 @@ class ScanConnectConsumer(BaseAsyncJsonWebsocketConsumer):
 
         try:
             alias: str = json.loads(text_data)["alias"]
-        except KeyError as e:
-            await self.send_json(
-                {
-                    "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,
-                    "status": False,
-                    "message": f"Missing value {str(e)}",
-                }
-            )
         except (TypeError, JSONDecodeError):
             await self.send_json(
                 {
                     "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,
                     "status": False,
                     "message": "Message(s) must be in json format",
+                }
+            )
+        except KeyError as e:
+            await self.send_json(
+                {
+                    "event": SCAN_EVENT_TYPES.SCAN_SETUP.value,
+                    "status": False,
+                    "message": f"Missing key {str(e)}",
                 }
             )
         else:

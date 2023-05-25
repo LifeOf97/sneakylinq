@@ -6,7 +6,7 @@ class MockRedisClient:
     redis_store: dict = {
         "device:001": {
             "did": str(uuid.uuid4()),
-            "channel": "specific_uniqu_str_by_channels",
+            "channel": "channel_name",
             "alias": "testalias_001",
             "ttl": (datetime.now() + timedelta(hours=2)).timestamp(),
         },
