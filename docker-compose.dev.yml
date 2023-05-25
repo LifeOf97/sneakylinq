@@ -3,7 +3,7 @@ version: '3.9'
 services:
 
   backend:
-    build: 
+    build:
       context: .
       dockerfile: ${PWD}/docker/django/Dockerfile.dev
     env_file:
@@ -13,32 +13,6 @@ services:
     ports:
       - 8000:8000
     command: sh scripts/run_dev.sh
-    depends_on:
-      database:
-        condition: service_healthy
-  
-  database:
-    image: postgres:15-alpine3.17
-    volumes:
-      - database_volume:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-    env_file:
-      - .env
-    expose:
-      - 5432
-    restart: always
-    healthcheck:
-      test: pg_isready -d ${DB_NAME} -U ${DB_USER}
-      interval: 5s
-      timeout: 10s
-      retries: 20
 
   redis:
     image: redis:7-alpine
-
-
-volumes:
-  database_volume:

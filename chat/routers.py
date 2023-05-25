@@ -1,7 +1,8 @@
 from django.urls import path
 
 from chat.consumers.chat_consumer import P2PChatConsumer
-from chat.consumers.connect_consumer import ConnectConsumer, ScanConnectConsumer
+from chat.consumers.connect_consumer import ConnectConsumer
+from chat.consumers.scan_consumer import ScanConnectConsumer
 
 websocket_urlpatterns = [
     path("ws/connect/", ConnectConsumer.as_asgi(), name="connect_consumer"),
