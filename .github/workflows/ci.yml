@@ -24,7 +24,7 @@ jobs:
           envkey_REDIS_PORT: ${{ secrets.REDIS_PORT }}
 
       - name: Build image with docker compose
-        run:  docker compose -f docker-compose.yml build --no-cache
+        run:  docker compose build --no-cache
 
   test:
     runs-on:  ubuntu-latest
@@ -32,4 +32,4 @@ jobs:
 
     steps:
       - name: Run test in docker container
-        run:  docker compose -f docker-compose.yml run --rm backend pytest
+        run:  docker compose run --rm backend pytest
