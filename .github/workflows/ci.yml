@@ -9,7 +9,7 @@ on:
 
 jobs:
 
-  create-envfile:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,14 +22,6 @@ jobs:
           envkey_CHANNEL_LAYER_BACKEND: ${{ secrets.CHANNEL_LAYER_BACKEND }}
           envkey_REDIS_SERVER: ${{ secrets.REDIS_SERVER }}
           envkey_REDIS_PORT: ${{ secrets.REDIS_PORT }}
-
-  build:
-    runs-on: ubuntu-latest
-    needs: create-envfile
-
-    steps:
-      - name: Checkout codebase
-        uses: actions/checkout@v3
 
       - name: Build image with docker compose
         run:  docker compose -f docker-compose.yml build --no-cache
