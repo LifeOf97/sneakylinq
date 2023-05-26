@@ -5,6 +5,7 @@ ARG USER=dockeruser
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV HOME=/home/${USER}
+
 ENV PATH="${PATH}:${HOME}/.local/bin"
 
 RUN addgroup -S ${USER} && adduser -S -G ${USER} ${USER}
