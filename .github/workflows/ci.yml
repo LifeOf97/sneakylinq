@@ -31,7 +31,8 @@ jobs:
 
   test:
     runs-on:  ubuntu-latest
-    needs:  build
+    needs:
+      - build
 
     steps:
       - name: Run test in docker container
