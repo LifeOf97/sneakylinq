@@ -24,7 +24,9 @@ jobs:
           envkey_REDIS_PORT: ${{ secrets.REDIS_PORT }}
 
       - name: Build image with docker compose
-        run:  docker compose build --no-cache
+        run: |
+          ls -al
+          docker compose build --no-cache
 
   test:
     runs-on:  ubuntu-latest
