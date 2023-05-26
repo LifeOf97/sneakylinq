@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout codebase
+        uses: actions/checkout@v3
+
       - name: Create .env file
         uses: SpicyPizza/create-envfile@v1.3
         with:
@@ -24,9 +27,7 @@ jobs:
           envkey_REDIS_PORT: ${{ secrets.REDIS_PORT }}
 
       - name: Build image with docker compose
-        run: |
-          ls -al
-          docker compose build --no-cache
+        run:  docker compose build --no-cache
 
   test:
     runs-on:  ubuntu-latest
