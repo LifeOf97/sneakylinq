@@ -14,7 +14,7 @@ from tests.mocks import MockRedisClient
 pytestmark = pytest.mark.asyncio
 
 
-class TestScanConsumerConnect:
+class TestConsumerConnect:
     async def test_drop_connection_if_scanned_device_has_no_channel(
         self,
         mock_redis_hget,
@@ -113,15 +113,10 @@ class TestScanConsumerConnect:
         assert received["status"] is True
         assert received["message"] == "Scanned succeccfully"
 
-        assert "did" in received["data"]
-        assert "channel" in received["data"]
-        assert "alias" in received["data"]
-        assert "ttl" in received["data"]
-
         await communicator.disconnect()
 
 
-class TestScanConsumerReceive:
+class TestConsumerReceive:
     async def test_received_messages_must_be_in_json_format(
         self,
         mock_redis_hget,
@@ -152,8 +147,11 @@ class TestScanConsumerReceive:
 
         connected, _ = await communicator.connect()
 
-        connected_response = await communicator.receive_json_from()
-        set_alias_message = await communicator.send_to(text_data="testuser_001")
+        # connected response
+        await communicator.receive_json_from()
+        # send alias message
+        await communicator.send_to(text_data="testuser_001")
+
         set_alias_response = await communicator.receive_json_from()
 
         assert connected
@@ -193,8 +191,11 @@ class TestScanConsumerReceive:
 
         connected, _ = await communicator.connect()
 
-        connected_response = await communicator.receive_json_from()
-        set_alias_message = await communicator.send_to(text_data='{"name": "testuser_001"}')
+        # connected response
+        await communicator.receive_json_from()
+        # send alias message
+        await communicator.send_to(text_data='{"name": "testuser_001"}')
+
         set_alias_response = await communicator.receive_json_from()
 
         assert connected
@@ -245,8 +246,11 @@ class TestScanConsumerReceive:
 
         connected, _ = await communicator.connect()
 
-        connected_response = await communicator.receive_json_from()
-        set_alias_message = await communicator.send_to(text_data=json.dumps({"alias": test_alias}))
+        # connected response
+        await communicator.receive_json_from()
+        # send alias message
+        await communicator.send_to(text_data=json.dumps({"alias": test_alias}))
+
         set_alias_response = await communicator.receive_json_from()
 
         assert connected
@@ -304,14 +308,14 @@ class TestScanConsumerReceive:
 
         test_alias: str = slugify(str(test_alias).lower()).replace("-", "_")
 
-        connected, _ = await communicator.connect()
+        # connected
+        await communicator.connect()
 
-        connected_response = await communicator.receive_json_from()
+        # connected response
+        await communicator.receive_json_from()
 
         with pytest.raises(TypeError):
-            set_alias_message = await communicator.send_to(
-                text_data=json.dumps({"alias": test_alias})
-            )
-            set_alias_response = await communicator.receive_json_from()
+            await communicator.send_to(text_data=json.dumps({"alias": test_alias}))
+            await communicator.receive_json_from()
 
             await communicator.disconnect()

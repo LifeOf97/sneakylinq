@@ -1,6 +1,6 @@
 from django.urls import path
 
-from chat.consumers.chat_consumer import P2PChatConsumer
+from chat.consumers.chat_p2p_consumer import P2PChatConsumer
 from chat.consumers.connect_consumer import ConnectConsumer
 from chat.consumers.scan_consumer import ScanConnectConsumer
 

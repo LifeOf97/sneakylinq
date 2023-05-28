@@ -4,6 +4,7 @@ import pytest
 from django.utils.text import slugify
 
 from chat.services.consumer_services import ConsumerServices
+from tests.mocks import MockRedisClient
 
 
 class TestConsumerServices:
@@ -152,14 +153,19 @@ class TestConsumerServices:
             is None
         )
 
-    def test_get_device_data(self, mock_luascript_get_device_data):
-        data = ConsumerServices.get_device_data(device="device:005")
+    def test_get_device_data(self, device_data, mock_luascript_get_device_data):
+        device_data = device_data
+
+        # create device data
+        MockRedisClient.redis_store[f"device:{device_data['did']}"] = device_data
+
+        data = ConsumerServices.get_device_data(device=f"device:{device_data['did']}")
 
         assert type(data) is dict
-        assert "did" in data.keys()
-        assert "channel" in data.keys()
-        assert "ttl" in data.keys()
-        assert "alias" in data.keys()
+        assert device_data["did"] == data["did"]
+        assert device_data["channel"] == data["channel"]
+        assert device_data["ttl"] == data["ttl"]
+        assert device_data["alias"] == data["alias"]
 
     def test_set_alias_device(self, mock_luascript_set_alias_device):
         assert ConsumerServices.set_alias_device("device:005") == 1

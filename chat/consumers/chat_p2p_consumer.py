@@ -22,7 +22,7 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
         Accept all connections at first.
 
         But only keep connection if the value at index 0 in the request subprotocol
-        is a valid uuid4 and device setup is complete else close connection.
+        is a valid uuid and device setup is complete else close connection.
         """
         try:
             self.did = self.scope["subprotocols"][0]
@@ -77,8 +77,15 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                         }
                     )
 
-            else:  # close if uuid is not valis
-                await self.close(code=1000)
+            else:  # close if uuid is not valid
+                await self.send_json(
+                    {
+                        "event": CHAT_EVENT_TYPES.CHAT_CONNECT.value,
+                        "status": False,
+                        "message": "A valid uuid should be at index 0 in subprotocols",
+                    }
+                )
+                await self.close()
 
     async def receive(self, text_data=None):
         """Receive chat messages and send to reciepient"""
