@@ -76,7 +76,7 @@ class MockRedisClient:
             return 0
 
     @staticmethod
-    def ddel(name: str) -> int:
+    def delete(name: str) -> int:
         try:
             MockRedisClient.redis_store[name] = None
             return 1
@@ -103,16 +103,4 @@ class MockLuaScript:
 
     @staticmethod
     def get_device_data(keys: list, client=None) -> dict:
-        # first set device data
-        MockRedisClient().hset(
-            name=keys[0],
-            mapping={
-                "did": str(uuid.uuid4()),
-                "channel": "specific_channel_name_auto_generated",
-                "ttl": (datetime.now() + timedelta(hours=2)).timestamp(),
-                "alias": "testalias",
-            },
-        )
-
-        # Then get device data
-        return MockRedisClient().hget(name=keys[0])
+        return MockRedisClient.hget(name=keys[0])

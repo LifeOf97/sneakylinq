@@ -1,3 +1,6 @@
+import uuid
+from datetime import datetime, timedelta
+
 import pytest
 from pytest import MonkeyPatch
 
@@ -41,13 +44,25 @@ def mock_redis_hdel(monkeypatch: MonkeyPatch):
 
 
 @pytest.fixture
-def mock_redis_del(monkeypatch: MonkeyPatch):
-    monkeypatch.setattr(redis_client, "del", MockRedisClient.ddel)
+def mock_redis_delete(monkeypatch: MonkeyPatch):
+    monkeypatch.setattr(redis_client, "delete", MockRedisClient.delete)
 
 
 @pytest.fixture
 def mock_redis_expireat(monkeypatch: MonkeyPatch):
     monkeypatch.setattr(redis_client, "expireat", MockRedisClient.expireat)
+
+
+@pytest.fixture
+def device_data():
+    return (
+        {
+            "did": str(uuid.uuid4()),
+            "channel": "channel-001",
+            "ttl": (datetime.now() + timedelta(hours=2)).timestamp(),
+            "alias": "testalias",
+        },
+    )[0]
 
 
 @pytest.fixture

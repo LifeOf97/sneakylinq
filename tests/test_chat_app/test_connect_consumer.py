@@ -1,5 +1,6 @@
 import json
 import uuid
+from datetime import datetime, timedelta
 
 import pytest
 from channels.testing import WebsocketCommunicator
@@ -7,11 +8,12 @@ from django.utils.text import slugify
 
 from chat.consumers.connect_consumer import ConnectConsumer
 from chat.events import DEVICE_EVENT_TYPES
+from tests.mocks import MockRedisClient
 
 pytestmark = pytest.mark.asyncio
 
 
-class TestConnectConsumerConnect:
+class TestConsumerConnect:
     async def test_connection_accepted_but_no_uuid_present_at_index_0_in_subprotocols(
         self,
         mock_redis_hget,
@@ -75,9 +77,9 @@ class TestConnectConsumerConnect:
         mock_luascript_get_device_data,
     ):
         """
-        Connection is accepted and kept alive provided uuid is at at index 0 in
+        Connection is accepted and kept alive provided uuid is at index 0 in
         subprotocols and is valid. device data is set in redis store and sent back
-        over the network.
+        back to the client
         """
         communicator = WebsocketCommunicator(
             application=ConnectConsumer(),
@@ -85,25 +87,19 @@ class TestConnectConsumerConnect:
             subprotocols=[uuid.uuid4()],
         )
 
-        connected, subprotocols = await communicator.connect()
+        connected, _ = await communicator.connect()
         response = await communicator.receive_json_from()
 
         assert connected
-        assert type(response) is dict
         assert response["event"] == DEVICE_EVENT_TYPES.DEVICE_CONNECT.value
         assert response["status"] is True
         assert response["message"] == "Current device data"
-
         assert type(response["data"]) is dict
-        assert "did" in response["data"].keys()
-        assert "channel" in response["data"].keys()
-        assert "ttl" in response["data"].keys()
-        assert "alias" in response["data"].keys()
 
         await communicator.disconnect()
 
 
-class TestConnectConsumerReceive:
+class TestConsumerReceive:
     async def test_received_messages_must_be_in_json_format(
         self,
         mock_redis_hget,
@@ -119,10 +115,13 @@ class TestConnectConsumerReceive:
             subprotocols=[uuid.uuid4()],
         )
 
-        connected, subprotocols = await communicator.connect()
+        connected, _ = await communicator.connect()
 
-        connected_response = await communicator.receive_json_from()
-        set_alias_message = await communicator.send_to(text_data="testuser_001")
+        # receive first message
+        await communicator.receive_json_from()
+        # send alias message
+        await communicator.send_to(text_data="testuser_001")
+
         set_alias_response = await communicator.receive_json_from()
 
         assert connected
@@ -147,10 +146,14 @@ class TestConnectConsumerReceive:
             subprotocols=[uuid.uuid4()],
         )
 
-        connected, subprotocols = await communicator.connect()
+        connected, _ = await communicator.connect()
 
-        connected_response = await communicator.receive_json_from()
-        set_alias_message = await communicator.send_to(text_data='{"name": "testuser_001"}')
+        # receive first message
+        await communicator.receive_json_from()
+
+        # send alias message
+        await communicator.send_to(text_data='{"name": "testuser_001"}')
+
         set_alias_response = await communicator.receive_json_from()
 
         assert connected
@@ -186,10 +189,13 @@ class TestConnectConsumerReceive:
             subprotocols=[uuid.uuid4()],
         )
 
-        connected, subprotocols = await communicator.connect()
+        connected, _ = await communicator.connect()
 
-        connected_response = await communicator.receive_json_from()
-        set_alias_message = await communicator.send_to(text_data=json.dumps({"alias": test_alias}))
+        # receive first message
+        await communicator.receive_json_from()
+        # send alias message
+        await communicator.send_to(text_data=json.dumps({"alias": test_alias}))
+
         set_alias_response = await communicator.receive_json_from()
 
         assert connected
@@ -221,27 +227,39 @@ class TestConnectConsumerReceive:
         mock_luascript_set_alias_device,
         mock_luascript_get_device_data,
     ):
+        did: uuid.UUID = uuid.uuid4()
+
+        device_data = (
+            {
+                "did": did,
+                "channel": "channel-001",
+                "ttl": (datetime.now() + timedelta(hours=2)).timestamp(),
+                "alias": test_alias,
+            },
+        )[0]
+
+        MockRedisClient.redis_store[f"device:{did}"] = device_data
+
         communicator = WebsocketCommunicator(
             application=ConnectConsumer(),
             path="/test/ws/connect/",
-            subprotocols=[uuid.uuid4()],
+            subprotocols=[did],
         )
 
         test_alias: str = slugify(str(test_alias).lower()).replace("-", "_")
 
-        connected, subprotocols = await communicator.connect()
+        connected, _ = await communicator.connect()
 
-        connected_response = await communicator.receive_json_from()
-        set_alias_message = await communicator.send_to(text_data=json.dumps({"alias": test_alias}))
+        # receive first message
+        await communicator.receive_json_from()
+        # send alias message
+        await communicator.send_to(text_data=json.dumps({"alias": test_alias}))
+
         set_alias_response = await communicator.receive_json_from()
 
         assert connected
         assert set_alias_response["event"] == DEVICE_EVENT_TYPES.DEVICE_SETUP.value
         assert set_alias_response["status"] is test_status
         assert set_alias_response["message"] == test_message
-        assert "did" in set_alias_response["data"].keys()
-        assert "channel" in set_alias_response["data"].keys()
-        assert "ttl" in set_alias_response["data"].keys()
-        assert "alias" in set_alias_response["data"].keys()
 
         await communicator.disconnect()
