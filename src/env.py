@@ -35,3 +35,7 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS"
 REDIS_SERVER = os.environ.get("REDIS_SERVER", "localhost")
 REDIS_PORT = os.environ.get("REDIS_PORT", 6379)
 CHANNEL_LAYER_BACKEND = os.environ.get("CHANNEL_LAYER_BACKEND")
+
+
+# CodeCov
+CODECOV_TOKEN = os.environ.get("CODECOV_TOKEN")

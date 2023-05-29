@@ -31,3 +31,6 @@ jobs:
 
       - name: Run test in docker container
         run:  docker compose run --rm backend pytest
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
