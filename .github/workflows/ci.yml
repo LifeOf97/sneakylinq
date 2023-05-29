@@ -32,6 +32,7 @@ jobs:
       - name: Run test in docker container
         run:  |
           docker compose run --rm backend pytest
+          ls -al
           mv .coverage shared
 
       - name: Upload coverage reports to Codecov
