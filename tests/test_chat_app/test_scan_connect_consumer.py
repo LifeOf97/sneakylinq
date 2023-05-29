@@ -269,7 +269,7 @@ class TestConsumerReceive:
             ("Luke.Shaw", "Alias accepted", True),
         ],
     )
-    async def test_received_alias_passed_format_and_verify_alias_but_raises_typeerror(
+    async def test_received_alias_passed_format_and_verify_alias(
         self,
         test_alias,
         test_message,
@@ -282,11 +282,6 @@ class TestConsumerReceive:
         mock_luascript_set_alias_device,
         mock_luascript_get_device_data,
     ):
-        """
-        Because channelnames are dynamically assigned on connect, we check that a
-        TypeError is raised when it get to the self.channel_layer.send() method
-        which requires the channel name to send a message to.
-        """
         did: uuid.UUID = uuid.uuid4()
 
         # Set device data in mock redis store
@@ -308,14 +303,17 @@ class TestConsumerReceive:
 
         test_alias: str = slugify(str(test_alias).lower()).replace("-", "_")
 
-        # connected
+        # connected & connected response
         await communicator.connect()
-
-        # connected response
         await communicator.receive_json_from()
 
-        with pytest.raises(TypeError):
-            await communicator.send_to(text_data=json.dumps({"alias": test_alias}))
-            await communicator.receive_json_from()
+        # with pytest.raises(TypeError):
+        await communicator.send_to(text_data=json.dumps({"alias": test_alias}))
+        response = await communicator.receive_json_from()
 
-            await communicator.disconnect()
+        assert response["event"] == SCAN_EVENT_TYPES.SCAN_SETUP.value
+        assert response["status"] is test_status
+        assert response["message"] == test_message
+        assert response["data"]["alias"] == f"{test_alias}.linq"
+
+        await communicator.disconnect()
