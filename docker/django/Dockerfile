@@ -16,6 +16,8 @@ WORKDIR ${HOME}/app
 
 COPY --chown=${USER}:${USER} requirements.txt /
 
+RUN mkdir shared
+
 RUN pip install --upgrade pip
 RUN pip install -r /requirements.txt
 

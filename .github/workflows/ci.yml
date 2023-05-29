@@ -30,7 +30,9 @@ jobs:
         run:  docker compose build --no-cache
 
       - name: Run test in docker container
-        run:  docker compose run --rm backend pytest
+        run:  |
+          docker compose run --rm backend pytest
+          mv .coverage shared
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
