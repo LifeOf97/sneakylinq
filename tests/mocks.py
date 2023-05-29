@@ -46,7 +46,10 @@ class MockRedisClient:
     @staticmethod
     def hset(name: str, mapping: dict) -> int:
         if type(mapping) is dict:
-            MockRedisClient.redis_store[name] = mapping
+            if name in MockRedisClient.redis_store.keys():
+                MockRedisClient.redis_store[name].update(mapping)
+            else:
+                MockRedisClient.redis_store[name] = mapping
             return 1
         return 0
 
