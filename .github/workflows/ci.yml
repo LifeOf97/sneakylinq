@@ -9,7 +9,7 @@ on:
 
 jobs:
 
-  build-and-test:
+  build-and-test-in-containerized:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,11 +29,35 @@ jobs:
       - name: Build image with docker compose
         run:  docker compose build --no-cache
 
-      - name: Run test in docker container
+      - name: Run test
+        run:  docker compose run --rm backend pytest
+
+
+  build-and-test-on-host:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout codebase
+        uses: actions/checkout@v3
+
+      - name: Create .env file
+        uses: SpicyPizza/create-envfile@v1.3
+        with:
+          envkey_SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          envkey_ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+          envkey_DB_ENGINE: ${{ secrets.DB_ENGINE }}
+          envkey_CHANNEL_LAYER_BACKEND: ${{ secrets.CHANNEL_LAYER_BACKEND }}
+          envkey_REDIS_SERVER: ${{ secrets.REDIS_SERVER }}
+          envkey_REDIS_PORT: ${{ secrets.REDIS_PORT }}
+
+      - name: Install project dependencies
         run:  |
-          docker compose run --rm backend pytest
-          ls -al
-          mv .coverage shared
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run test
+        run:  |
+          pytest
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3

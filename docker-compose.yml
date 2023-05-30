@@ -11,7 +11,7 @@ services:
     ports:
       - 8000:8000
     volumes:
-      - ${PWD}/shared:/home/${USER}/app/shared
+      - ${PWD}/shared:/home/${USER}/shared
     command: sh scripts/entrypoint_prod.sh
 
   redis:
