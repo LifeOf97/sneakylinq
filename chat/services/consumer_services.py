@@ -32,7 +32,7 @@ class ConsumerServices:
                 "ttl": ttl.timestamp(),
             },
         )
-        redis_client.expireat(device, ttl.timestamp())
+        redis_client.expireat(device, ttl)
 
         # call method to update the 'alias:device' redis hash
         ConsumerServices.set_alias_device(device=device)
@@ -61,7 +61,7 @@ class ConsumerServices:
         ttl = timezone.now() + timezone.timedelta(hours=2)
 
         redis_client.hset(device, mapping={"ttl": ttl.timestamp()})
-        redis_client.expireat(device, ttl.timestamp())
+        redis_client.expireat(device, ttl)
 
     @staticmethod
     def get_device_data(device: str) -> dict:

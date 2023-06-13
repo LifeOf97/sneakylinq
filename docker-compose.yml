@@ -10,8 +10,6 @@ services:
       - .env
     ports:
       - 8000:8000
-    volumes:
-      - ${PWD}/shared:/home/${USER}/shared
     command: sh scripts/entrypoint_prod.sh
 
   redis:

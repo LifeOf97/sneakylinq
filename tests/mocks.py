@@ -88,7 +88,7 @@ class MockRedisClient:
 
     @staticmethod
     def expireat(name: str, ttl: datetime) -> None:
-        MockRedisClient.redis_store[name]["expireat"] = ttl
+        MockRedisClient.redis_store[name]["expireat"] = str(ttl)
 
 
 class MockLuaScript:
