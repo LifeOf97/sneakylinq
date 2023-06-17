@@ -155,4 +155,4 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
             f"{self.alias_device}",
             f"{redis_client.hget(f'{self.device_alias}', f'{self.device}')}",
         )
-        redis_client.delete(f"{self.device}")
+        # redis_client.delete(f"{self.device}")

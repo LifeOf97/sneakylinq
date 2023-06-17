@@ -22,7 +22,7 @@ class ConsumerServices:
         :param did: Device uuid, from the connection subprotocols
         :param channel: Channel given to the consumer on connect
         """
-        ttl = timezone.now() + timezone.timedelta(hours=2)
+        ttl = timezone.now() + timezone.timedelta(minutes=30)
 
         redis_client.hset(
             name=device,
@@ -58,7 +58,7 @@ class ConsumerServices:
         redis_client.hset(device_alias, mapping={device: alias})
         redis_client.hset(alias_device, mapping={alias: device})
 
-        ttl = timezone.now() + timezone.timedelta(hours=2)
+        ttl = timezone.now() + timezone.timedelta(minutes=30)
 
         redis_client.hset(device, mapping={"ttl": ttl.timestamp()})
         redis_client.expireat(device, ttl)
