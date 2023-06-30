@@ -12,7 +12,7 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
     """
     P2P Chat consumer will:
 
-    1. Accept connections, checks dvice if to keep or discard connection.
+    1. Accept connections, checks device if to keep or discard connection.
     2. Receive data to send as chat messages.
     3. Then Disconnect, when explicitly requested.
     """
@@ -110,6 +110,7 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
             )
         else:
             try:
+                # send chat to receipient
                 await self.channel_layer.send(
                     redis_client.hget(
                         redis_client.hget(self.alias_device, to_alias),
@@ -120,14 +121,32 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
                         "data": {
                             "event": CHAT_EVENT_TYPES.CHAT_MESSAGE.value,
                             "status": True,
-                            "message": "Message",
+                            "message": "received",
                             "data": {
-                                "from": redis_client.hget(self.device_alias, self.device),
+                                "alias": redis_client.hget(self.device_alias, self.device),
+                                "did": redis_client.hget(self.device, "did"),
                                 "message": message,
                             },
                         },
                     },
                 )
+
+                # send chat to sender
+                await self.send_json(
+                    {
+                        "event": CHAT_EVENT_TYPES.CHAT_MESSAGE.value,
+                        "status": True,
+                        "message": "send",
+                        "data": {
+                            "alias": to_alias,
+                            "did": redis_client.hget(
+                                redis_client.hget(self.alias_device, to_alias), "did"
+                            ),
+                            "message": message,
+                        },
+                    }
+                )
+
             except redis_exceptions.DataError:
                 await self.send_json(
                     {
@@ -155,4 +174,3 @@ class P2PChatConsumer(BaseAsyncJsonWebsocketConsumer):
             f"{self.alias_device}",
             f"{redis_client.hget(f'{self.device_alias}', f'{self.device}')}",
         )
-        # redis_client.delete(f"{self.device}")
